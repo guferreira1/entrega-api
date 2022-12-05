@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { listUsersAdmin } from "./Controllers/UserAdminController";
+import { deleteAdmin, listUsersAdmin } from "./Controllers/UserAdminController";
 import {
-  adminDelete,
   createUser,
   deleteUser,
   loggedUser,
@@ -11,19 +10,22 @@ import {
 import {
   authMiddlewareAdmin,
   authMiddlewareToken,
+  verifyUserExists,
 } from "./middleware/authMiddleware";
 
 const routes = Router();
 
-routes.post("/users", createUser);
 routes.post("/login", loginUser);
+
+routes.post("/users", verifyUserExists, createUser);
 
 routes.use(authMiddlewareToken);
 routes.get("/users/profile", loggedUser);
-routes.delete("/users/:uuid", deleteUser);
 routes.patch("/users/:uuid", pathUser);
+routes.delete("/users/:uuid", deleteUser);
 
 routes.use(authMiddlewareAdmin);
 routes.get("/users", listUsersAdmin);
+routes.delete("/users/:uuid", deleteAdmin);
 
 export default routes;

@@ -1,158 +1,49 @@
-import { v4 as uuid } from "uuid";
-import bcrypt from "bcryptjs";
-import users from "../database";
-import jwt from "jsonwebtoken";
-import { compare } from "bcryptjs";
+import {
+  createUserService,
+  deleteUserService,
+  loggedUserService,
+  loginUserService,
+  pathUserService,
+} from "../../services/UserServices";
 
 export const createUser = async (req, res) => {
-  const { name, email, password, isAdm } = req.body;
+  const [status, user] = await createUserService(req.body);
 
-  const userExists = users.find((user) => user.email === req.body.email);
-
-  if (userExists) {
-    return res
-      .status(409)
-      .json({ message: "This email is already being used" });
-  }
-
-  const hashPass = await bcrypt.hash(password, 10);
-
-  const user = {
-    uuid: uuid(),
-    createdOn: new Date(),
-    updatedOn: new Date(),
-    name,
-    email,
-    isAdm,
-    password: hashPass,
-  };
-
-  users.push(user);
-
-  const { password: removePass, ...newUser } = user;
-
-  return res.status(201).json(newUser);
+  return res.status(status).json(user);
 };
 
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
-  const userExists = users.find((user) => user.email === req.body.email);
+  const [status, token] = await loginUserService(email, password);
 
-  if (!userExists) {
-    return res.status(401).json({ message: "E-mail ou senha inválidos" });
-  }
-
-  const comparePass = await compare(password, userExists.password);
-
-  if (!comparePass) {
-    return res.status(401).json({ message: "E-mail ou senha inválidos" });
-  }
-
-  const token = jwt.sign({ email }, "SECRET_KEY", {
-    expiresIn: "1d",
-    subject: userExists.uuid,
-  });
-
-  return res.json({ token });
+  return res.status(status).json(token);
 };
 
-export const loggedUser = (req, res, next) => {
+export const loggedUser = (req, res) => {
   const { authorization } = req.headers;
 
-  const token = authorization.split(" ")[1];
+  const [status, user] = loggedUserService(authorization);
 
-  return jwt.verify(token, "SECRET_KEY", (error, decoded) => {
-    if (error) {
-      return res.send(error.message);
-    }
-
-    const user = users.find((user) => user.email === decoded.email);
-
-    const { password: removePass, ...getUser } = user;
-
-    res.json(getUser);
-  });
+  return res.status(status).json(user);
 };
 
 export const deleteUser = (req, res) => {
   const { authorization } = req.headers;
 
-  const token = authorization.split(" ")[1];
+  const [status, data] = deleteUserService(req.params.id, authorization);
 
-  return jwt.verify(token, "SECRET_KEY", (error, decoded) => {
-    if (error) {
-      return res.send(error.message);
-    }
-
-    const verifyAdmin = users.find((admin) => admin.email === decoded.email);
-
-    if (verifyAdmin.isAdm) {
-      const findAdminDelete = users.findIndex(
-        (user) => user.uuid === req.params.uuid
-      );
-
-      users.splice(findAdminDelete, 1);
-
-      return res.status(204).json({});
-    }
-
-    if (req.params.uuid === decoded.sub) {
-      const findUserDelete = users.findIndex(
-        (user) => user.uuid === req.params.uuid
-      );
-
-      users.splice(findUserDelete, 1);
-
-      return res.status(204).json({});
-    } else {
-      return res.status(403).json({ message: "missing admin permissions" });
-    }
-  });
+  return res.status(status).json(data);
 };
 
 export const pathUser = (req, res) => {
-  const user = users.find((user) => user.uuid === req.params.uuid);
-
-  user.updatedOn = new Date();
-
   const { authorization } = req.headers;
 
-  const token = authorization.split(" ")[1];
+  const id = req.params.uuid;
 
-  return jwt.verify(token, "SECRET_KEY", (error, decoded) => {
-    if (error) {
-      return res.send(error.message);
-    }
+  const data = req.body;
 
-    const verifyAdmin = users.find((admin) => admin.email === decoded.email);
+  const [status, user] = pathUserService(data, id, authorization);
 
-    if (verifyAdmin.isAdm) {
-      const editUser = { ...user, ...req.body };
-
-      const getUser = users.findIndex((user) => user.uuid === req.params.uuid);
-
-      users.splice(getUser, 1);
-
-      users.push(editUser);
-
-      return res.json(editUser);
-    }
-
-    if (req.params.uuid === decoded.sub) {
-      const editUser = { ...user, ...req.body };
-
-      const getUser = users.findIndex((user) => user.uuid === req.params.uuid);
-
-      users.splice(getUser, 1);
-
-      users.push(editUser);
-
-      const { password: pass, ...newUser } = editUser;
-
-      return res.json(newUser);
-    } else {
-      return res.status(403).json({ message: "missing admin permissions" });
-    }
-  });
+  return res.status(status).json(user);
 };

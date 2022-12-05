@@ -24,9 +24,20 @@ export const authMiddlewareAdmin = (req, res, next) => {
     const user = users.find((user) => user.email === decoded.email);
 
     if (!user.isAdm) {
-      return res.status(403).json({ message: "missing admin permissions" });
+      return res.status(403).json({ message: "teste" });
     }
 
     next();
   });
+};
+
+export const verifyUserExists = (req, res, next) => {
+  const userAlreadyExists = users.find((user) => user.email === req.body.email);
+
+  if (userAlreadyExists) {
+    return res
+      .status(409)
+      .json({ message: "This email is already being used" });
+  }
+  return next();
 };
